@@ -1,0 +1,64 @@
+# .gitignore for a monorepo-style project with Node.js frontend and backend
+
+# ###################################################################
+# ## General
+# ###################################################################
+
+# Dependencies
+# Ignore node_modules directories in any folder (root, frontend/, backend/, etc.)
+node_modules/
+
+# Build artifacts / Distribution folders
+dist/
+build/
+.next/
+.vercel/
+out/
+
+# Log files
+*.log
+npm-debug.log*
+yarn-error.log
+yarn-debug.log
+
+# ###################################################################
+# ## Environment
+# ###################################################################
+
+# Environment variables
+# These files contain secrets and should NEVER be committed.
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Exclude all .env files unless they are an example template
+.env.*
+!*.env.example
+!*.env.template
+
+# ###################################################################
+# ## System / Editor Specific
+# ###################################################################
+
+# Operating System files
+.DS_Store
+Thumbs.db
+
+# IDE / Editor configuration
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ###################################################################
+# ## Testing
+# ###################################################################
+
+# Test coverage reports
+coverage/
+.nyc_output/
