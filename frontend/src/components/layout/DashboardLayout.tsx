@@ -1,7 +1,6 @@
 import React, { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import {
-  BarChart3,
   Calculator,
   DollarSign,
   Shield,
@@ -14,6 +13,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import EconDashLogo from '@/components/ui/EconDashLogo'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -45,7 +45,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
           {/* Logo */}
           <div className="flex items-center justify-center h-16 px-4 border-b border-gray-200">
             <div className="flex items-center">
-              <BarChart3 className="h-8 w-8 text-primary" />
+              <EconDashLogo size={32} />
               <span className="ml-2 text-xl font-semibold text-gray-900">
                 EconDash
               </span>
@@ -115,7 +115,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
               <Menu className="h-6 w-6" />
             </button>
             <div className="flex items-center">
-              <BarChart3 className="h-8 w-8 text-primary" />
+              <EconDashLogo size={32} />
               <span className="ml-2 text-xl font-semibold text-gray-900">
                 EconDash
               </span>
