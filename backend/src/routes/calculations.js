@@ -4,6 +4,7 @@ const { authenticateToken } = require('../middleware/auth');
 const CostEstimationService = require('../services/costEstimation');
 const FinancialAnalysisService = require('../services/financialAnalysis');
 const RiskManagementService = require('../services/riskManagement');
+const CalculationHistoryService = require('../services/calculationHistory');
 
 const router = express.Router();
 
@@ -27,6 +28,18 @@ router.post('/cost-estimation/cocomo', authenticateToken, [
 
     const { kloc, projectType, teamSize } = req.body;
     const result = CostEstimationService.cocomoEstimation(kloc, projectType, teamSize);
+
+    // Save calculation to database
+    try {
+      await CalculationHistoryService.saveCalculation(req.user.id, {
+        method: 'COCOMO',
+        inputData: { kloc, projectType, teamSize },
+        results: result
+      });
+    } catch (saveError) {
+      console.warn('Failed to save calculation to database:', saveError);
+      // Don't fail the request if saving fails
+    }
 
     res.json({
       success: true,
@@ -59,33 +72,18 @@ router.post('/cost-estimation/function-points', authenticateToken, [
     const functionCounts = req.body;
     const result = CostEstimationService.functionPointsEstimation(functionCounts);
 
-    res.json({
-      success: true,
-      data: result
-    });
-  } catch (error) {
-    next(error);
-  }
-});
-
-// Expert Judgment Estimation
-router.post('/cost-estimation/expert-judgment', authenticateToken, [
-  body('estimates').isArray({ min: 1 }).withMessage('Estimates array is required'),
-  body('estimates.*').isFloat({ min: 0 }).withMessage('All estimates must be positive numbers')
-], async (req, res, next) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Validation failed',
-        errors: errors.array()
+    // Save calculation to database
+    try {
+      await CalculationHistoryService.saveCalculation(req.user.id, {
+        method: 'Function Points',
+        inputData: functionCounts,
+        results: result
       });
+    } catch (saveError) {
+      console.warn('Failed to save calculation to database:', saveError);
+      // Don't fail the request if saving fails
     }
 
-    const { estimates } = req.body;
-    const result = CostEstimationService.expertJudgmentEstimation(estimates);
-
     res.json({
       success: true,
       data: result
@@ -94,6 +92,8 @@ router.post('/cost-estimation/expert-judgment', authenticateToken, [
     next(error);
   }
 });
+
+
 
 // Regression Analysis Estimation
 router.post('/cost-estimation/regression', authenticateToken, [
@@ -114,6 +114,18 @@ router.post('/cost-estimation/regression', authenticateToken, [
 
     const { historicalData, projectSize } = req.body;
     const result = CostEstimationService.regressionAnalysisEstimation(historicalData, projectSize);
+
+    // Save calculation to database
+    try {
+      await CalculationHistoryService.saveCalculation(req.user.id, {
+        method: 'Regression Analysis',
+        inputData: { historicalData, projectSize },
+        results: result
+      });
+    } catch (saveError) {
+      console.warn('Failed to save calculation to database:', saveError);
+      // Don't fail the request if saving fails
+    }
 
     res.json({
       success: true,
@@ -401,6 +413,78 @@ router.post('/risk-analysis/assessment-matrix', authenticateToken, [
     res.json({
       success: true,
       data: result
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Calculation History Routes
+
+// Get user's calculation history
+router.get('/history', authenticateToken, async (req, res, next) => {
+  try {
+    const { page = 1, limit = 20 } = req.query;
+    const offset = (page - 1) * limit;
+
+    const result = await CalculationHistoryService.getUserCalculations(
+      req.user.id,
+      parseInt(limit),
+      parseInt(offset)
+    );
+
+    res.json({
+      success: true,
+      data: result.data,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: result.data.length
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get calculation statistics
+router.get('/history/stats', authenticateToken, async (req, res, next) => {
+  try {
+    const result = await CalculationHistoryService.getUserCalculationStats(req.user.id);
+
+    res.json({
+      success: true,
+      data: result.data
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get specific calculation by ID
+router.get('/history/:id', authenticateToken, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const result = await CalculationHistoryService.getCalculationById(req.user.id, id);
+
+    res.json({
+      success: true,
+      data: result.data
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Delete a calculation
+router.delete('/history/:id', authenticateToken, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const result = await CalculationHistoryService.deleteCalculation(req.user.id, id);
+
+    res.json({
+      success: true,
+      message: result.message
     });
   } catch (error) {
     next(error);

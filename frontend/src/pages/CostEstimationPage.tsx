@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
-import { Calculator, TrendingUp } from 'lucide-react'
+import { Calculator, TrendingUp, Plus, Trash2, History } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -7,6 +8,7 @@ import { formatCurrency, formatNumber } from '@/lib/utils'
 import { toast } from 'sonner'
 
 const CostEstimationPage: React.FC = () => {
+  const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('cocomo')
   const [loading, setLoading] = useState(false)
   const [results, setResults] = useState<any>(null)
@@ -26,6 +28,12 @@ const CostEstimationPage: React.FC = () => {
     internalLogicalFiles: '',
     externalInterfaceFiles: '',
     complexity: 'average' as 'simple' | 'average' | 'complex'
+  })
+
+  // Regression Analysis state
+  const [regressionData, setRegressionData] = useState({
+    historicalData: [{ size: '', effort: '', projectName: '' }],
+    projectSize: ''
   })
 
   const handleCocomoCalculation = async () => {
@@ -125,21 +133,119 @@ const CostEstimationPage: React.FC = () => {
     }
   }
 
+  const handleRegressionCalculation = async () => {
+    const validData = regressionData.historicalData.filter(item => item.size && item.effort)
+
+    if (validData.length < 2) {
+      toast.error('Please provide at least 2 historical data points')
+      return
+    }
+
+    if (!regressionData.projectSize) {
+      toast.error('Please enter the project size for prediction')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const data = validData.map(item => ({
+        size: parseFloat(item.size),
+        effort: parseFloat(item.effort)
+      }))
+
+      const projectSize = parseFloat(regressionData.projectSize)
+
+      // Call API
+      const response = await fetch('/api/calculations/cost-estimation/regression', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ historicalData: data, projectSize })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to calculate regression estimation')
+      }
+
+      const result = await response.json()
+
+      setResults({
+        method: 'Regression Analysis',
+        ...result.data,
+        cost: result.data.predictedEffort * 8000 // Convert person-months to cost
+      })
+
+      toast.success('Regression analysis completed')
+    } catch (error) {
+      console.error('Regression calculation error:', error)
+      toast.error('Calculation failed')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const addHistoricalDataPoint = () => {
+    setRegressionData(prev => ({
+      ...prev,
+      historicalData: [...prev.historicalData, { size: '', effort: '', projectName: '' }]
+    }))
+  }
+
+  const removeHistoricalDataPoint = (index: number) => {
+    setRegressionData(prev => ({
+      ...prev,
+      historicalData: prev.historicalData.filter((_, i) => i !== index)
+    }))
+  }
+
+  const updateHistoricalDataPoint = (index: number, field: 'size' | 'effort' | 'projectName', value: string) => {
+    setRegressionData(prev => ({
+      ...prev,
+      historicalData: prev.historicalData.map((item, i) =>
+        i === index ? { ...item, [field]: value } : item
+      )
+    }))
+  }
+
+  // Function to check if results match the current active tab
+  const isResultsForCurrentTab = () => {
+    if (!results || !results.method) return false
+
+    const methodMapping = {
+      'cocomo': 'COCOMO',
+      'function-points': 'Function Points',
+      'regression': 'Regression Analysis'
+    }
+
+    return results.method === methodMapping[activeTab as keyof typeof methodMapping]
+  }
+
   const tabs = [
     { id: 'cocomo', name: 'COCOMO', description: 'Constructive Cost Model' },
     { id: 'function-points', name: 'Function Points', description: 'Function Point Analysis' },
-    { id: 'expert', name: 'Expert Judgment', description: 'Expert-based Estimation' },
     { id: 'regression', name: 'Regression', description: 'Historical Data Analysis' },
   ]
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Cost Estimation</h1>
-        <p className="text-gray-600 mt-1">
-          Estimate software development costs using various methodologies
-        </p>
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Cost Estimation</h1>
+          <p className="text-gray-600 mt-1">
+            Estimate software development costs using various methodologies
+          </p>
+        </div>
+        <Button
+          onClick={() => navigate('/calculation-history')}
+          variant="outline"
+          className="flex items-center"
+        >
+          <History className="h-4 w-4 mr-2" />
+          View History
+        </Button>
       </div>
 
       {/* Method Tabs */}
@@ -148,7 +254,22 @@ const CostEstimationPage: React.FC = () => {
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => {
+                // Clear results when switching to a different tab
+                if (activeTab !== tab.id) {
+                  const methodMapping = {
+                    'cocomo': 'COCOMO',
+                    'function-points': 'Function Points',
+                    'regression': 'Regression Analysis'
+                  }
+
+                  const newTabMethod = methodMapping[tab.id as keyof typeof methodMapping]
+                  if (results && results.method !== newTabMethod) {
+                    setResults(null)
+                  }
+                }
+                setActiveTab(tab.id)
+              }}
               className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                 activeTab === tab.id
                   ? 'border-primary text-primary'
@@ -161,135 +282,140 @@ const CostEstimationPage: React.FC = () => {
         </nav>
       </div>
 
+      {/* Content */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Input Form */}
+        {/* Input Panel */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center">
               <Calculator className="h-5 w-5 mr-2" />
-              {tabs.find(t => t.id === activeTab)?.name} Estimation
+              {tabs.find(tab => tab.id === activeTab)?.name}
             </CardTitle>
             <CardDescription>
-              {tabs.find(t => t.id === activeTab)?.description}
+              {tabs.find(tab => tab.id === activeTab)?.description}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {activeTab === 'cocomo' && (
               <>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    KLOC (Thousands of Lines of Code)
-                  </label>
-                  <Input
-                    type="number"
-                    value={cocomoData.kloc}
-                    onChange={(e) => setCocomoData(prev => ({ ...prev, kloc: e.target.value }))}
-                    placeholder="Enter KLOC estimate"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Project Type
-                  </label>
-                  <select
-                    value={cocomoData.projectType}
-                    onChange={(e) => setCocomoData(prev => ({ ...prev, projectType: e.target.value as any }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                  >
-                    <option value="organic">Organic (Small team, familiar domain)</option>
-                    <option value="semidetached">Semi-detached (Medium complexity)</option>
-                    <option value="embedded">Embedded (Large, complex, innovative)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Team Size (Optional)
-                  </label>
-                  <Input
-                    type="number"
-                    value={cocomoData.teamSize}
-                    onChange={(e) => setCocomoData(prev => ({ ...prev, teamSize: e.target.value }))}
-                    placeholder="Number of developers"
-                  />
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      KLOC (Kilo Lines of Code)
+                    </label>
+                    <Input
+                      type="number"
+                      placeholder="Enter KLOC"
+                      value={cocomoData.kloc}
+                      onChange={(e) => setCocomoData(prev => ({ ...prev, kloc: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Project Type
+                    </label>
+                    <select
+                      value={cocomoData.projectType}
+                      onChange={(e) => setCocomoData(prev => ({ ...prev, projectType: e.target.value as any }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                    >
+                      <option value="organic">Organic</option>
+                      <option value="semidetached">Semi-detached</option>
+                      <option value="embedded">Embedded</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Team Size (optional)
+                    </label>
+                    <Input
+                      type="number"
+                      placeholder="Enter team size"
+                      value={cocomoData.teamSize}
+                      onChange={(e) => setCocomoData(prev => ({ ...prev, teamSize: e.target.value }))}
+                    />
+                  </div>
                 </div>
                 <Button onClick={handleCocomoCalculation} disabled={loading} className="w-full">
-                  {loading ? 'Calculating...' : 'Calculate COCOMO Estimate'}
+                  {loading ? 'Calculating...' : 'Calculate COCOMO'}
                 </Button>
               </>
             )}
 
             {activeTab === 'function-points' && (
               <>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      External Inputs
-                    </label>
-                    <Input
-                      type="number"
-                      value={fpData.externalInputs}
-                      onChange={(e) => setFpData(prev => ({ ...prev, externalInputs: e.target.value }))}
-                      placeholder="0"
-                    />
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        External Inputs
+                      </label>
+                      <Input
+                        type="number"
+                        placeholder="Number of external inputs"
+                        value={fpData.externalInputs}
+                        onChange={(e) => setFpData(prev => ({ ...prev, externalInputs: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        External Outputs
+                      </label>
+                      <Input
+                        type="number"
+                        placeholder="Number of external outputs"
+                        value={fpData.externalOutputs}
+                        onChange={(e) => setFpData(prev => ({ ...prev, externalOutputs: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        External Inquiries
+                      </label>
+                      <Input
+                        type="number"
+                        placeholder="Number of external inquiries"
+                        value={fpData.externalInquiries}
+                        onChange={(e) => setFpData(prev => ({ ...prev, externalInquiries: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Internal Logical Files
+                      </label>
+                      <Input
+                        type="number"
+                        placeholder="Number of internal logical files"
+                        value={fpData.internalLogicalFiles}
+                        onChange={(e) => setFpData(prev => ({ ...prev, internalLogicalFiles: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        External Interface Files
+                      </label>
+                      <Input
+                        type="number"
+                        placeholder="Number of external interface files"
+                        value={fpData.externalInterfaceFiles}
+                        onChange={(e) => setFpData(prev => ({ ...prev, externalInterfaceFiles: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Overall Complexity
+                      </label>
+                      <select
+                        value={fpData.complexity}
+                        onChange={(e) => setFpData(prev => ({ ...prev, complexity: e.target.value as any }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                      >
+                        <option value="simple">Simple</option>
+                        <option value="average">Average</option>
+                        <option value="complex">Complex</option>
+                      </select>
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      External Outputs
-                    </label>
-                    <Input
-                      type="number"
-                      value={fpData.externalOutputs}
-                      onChange={(e) => setFpData(prev => ({ ...prev, externalOutputs: e.target.value }))}
-                      placeholder="0"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      External Inquiries
-                    </label>
-                    <Input
-                      type="number"
-                      value={fpData.externalInquiries}
-                      onChange={(e) => setFpData(prev => ({ ...prev, externalInquiries: e.target.value }))}
-                      placeholder="0"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Internal Files
-                    </label>
-                    <Input
-                      type="number"
-                      value={fpData.internalLogicalFiles}
-                      onChange={(e) => setFpData(prev => ({ ...prev, internalLogicalFiles: e.target.value }))}
-                      placeholder="0"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    External Interface Files
-                  </label>
-                  <Input
-                    type="number"
-                    value={fpData.externalInterfaceFiles}
-                    onChange={(e) => setFpData(prev => ({ ...prev, externalInterfaceFiles: e.target.value }))}
-                    placeholder="0"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Complexity Level
-                  </label>
-                  <select
-                    value={fpData.complexity}
-                    onChange={(e) => setFpData(prev => ({ ...prev, complexity: e.target.value as any }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                  >
-                    <option value="simple">Simple</option>
-                    <option value="average">Average</option>
-                    <option value="complex">Complex</option>
-                  </select>
                 </div>
                 <Button onClick={handleFunctionPointsCalculation} disabled={loading} className="w-full">
                   {loading ? 'Calculating...' : 'Calculate Function Points'}
@@ -297,95 +423,209 @@ const CostEstimationPage: React.FC = () => {
               </>
             )}
 
-            {(activeTab === 'expert' || activeTab === 'regression') && (
-              <div className="text-center py-8">
-                <Calculator className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  Coming Soon
-                </h3>
-                <p className="text-gray-500">
-                  This estimation method will be available in a future update.
-                </p>
-              </div>
+            {activeTab === 'regression' && (
+              <>
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex justify-between items-center mb-3">
+                      <label className="block text-sm font-medium text-gray-700">
+                        Historical Project Data
+                      </label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={addHistoricalDataPoint}
+                        className="flex items-center"
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Add Project
+                      </Button>
+                    </div>
+                    <div className="space-y-3">
+                      {regressionData.historicalData.map((project, index) => (
+                        <div key={index} className="border rounded-lg p-3 space-y-2">
+                          <div className="flex justify-between items-center">
+                            <Input
+                              type="text"
+                              placeholder={`Project ${index + 1} Name (optional)`}
+                              value={project.projectName}
+                              onChange={(e) => updateHistoricalDataPoint(index, 'projectName', e.target.value)}
+                              className="flex-1 mr-2"
+                            />
+                            {regressionData.historicalData.length > 1 && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => removeHistoricalDataPoint(index)}
+                                className="px-2"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="text-xs text-gray-600">Size (KLOC)</label>
+                              <Input
+                                type="number"
+                                placeholder="Size"
+                                value={project.size}
+                                onChange={(e) => updateHistoricalDataPoint(index, 'size', e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs text-gray-600">Effort (PM)</label>
+                              <Input
+                                type="number"
+                                placeholder="Effort"
+                                value={project.effort}
+                                onChange={(e) => updateHistoricalDataPoint(index, 'effort', e.target.value)}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      New Project Size (KLOC)
+                    </label>
+                    <Input
+                      type="number"
+                      placeholder="Enter project size for estimation"
+                      value={regressionData.projectSize}
+                      onChange={(e) => setRegressionData(prev => ({ ...prev, projectSize: e.target.value }))}
+                    />
+                  </div>
+                  <div className="bg-blue-50 p-3 rounded text-sm">
+                    <h5 className="font-medium mb-1">Linear Regression Analysis:</h5>
+                    <p>Uses historical project data to predict effort based on size. Requires at least 2 data points.</p>
+                  </div>
+                </div>
+                <Button onClick={handleRegressionCalculation} disabled={loading} className="w-full">
+                  {loading ? 'Calculating...' : 'Calculate Regression Analysis'}
+                </Button>
+              </>
             )}
           </CardContent>
         </Card>
 
-        {/* Results */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <TrendingUp className="h-5 w-5 mr-2" />
-              Estimation Results
-            </CardTitle>
-            <CardDescription>
-              Your cost estimation calculation results
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {results ? (
+        {/* Results Panel */}
+        {results && isResultsForCurrentTab() && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <TrendingUp className="h-5 w-5 mr-2" />
+                Results - {results.method}
+              </CardTitle>
+              <CardDescription>
+                Cost estimation results
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
               <div className="space-y-4">
-                <div className="bg-primary/10 p-4 rounded-lg">
-                  <h3 className="font-semibold text-primary mb-2">
-                    {results.method} Results
-                  </h3>
-                  <div className="space-y-3">
-                    {results.effort && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Effort:</span>
-                        <span className="font-medium">{formatNumber(results.effort)} person-months</span>
+                <div className="grid grid-cols-1 gap-3">
+                  {results.effort && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Effort:</span>
+                      <span className="font-medium">{formatNumber(results.effort)} person-months</span>
+                    </div>
+                  )}
+                  {results.time && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Development Time:</span>
+                      <span className="font-medium">{formatNumber(results.time)} months</span>
+                    </div>
+                  )}
+                  {results.cost && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Estimated Cost:</span>
+                      <span className="font-medium text-lg">{formatCurrency(results.cost)}</span>
+                    </div>
+                  )}
+                  {results.functionPoints && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Function Points:</span>
+                      <span className="font-medium">{formatNumber(results.functionPoints)}</span>
+                    </div>
+                  )}
+                  {results.kloc && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">KLOC:</span>
+                      <span className="font-medium">{formatNumber(results.kloc)}</span>
+                    </div>
+                  )}
+                  {results.productivity && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Productivity:</span>
+                      <span className="font-medium">{formatNumber(results.productivity)}</span>
+                    </div>
+                  )}
+
+                  {/* Regression Analysis specific results */}
+                  {results.method === 'Regression Analysis' && (
+                    <>
+                      <div className="border-t pt-3 mt-3">
+                        <h5 className="font-medium text-gray-700 mb-2">Statistical Analysis</h5>
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          {results.correlationCoefficient && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Correlation:</span>
+                              <span>{formatNumber(results.correlationCoefficient)}</span>
+                            </div>
+                          )}
+                          {results.rSquared && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">R²:</span>
+                              <span>{formatNumber(results.rSquared)}</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    )}
-                    {results.time && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Development Time:</span>
-                        <span className="font-medium">{formatNumber(results.time)} months</span>
-                      </div>
-                    )}
-                    {results.cost && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Estimated Cost:</span>
-                        <span className="font-medium text-lg">{formatCurrency(results.cost)}</span>
-                      </div>
-                    )}
-                    {results.functionPoints && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Function Points:</span>
-                        <span className="font-medium">{formatNumber(results.functionPoints)}</span>
-                      </div>
-                    )}
-                    {results.kloc && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">KLOC:</span>
-                        <span className="font-medium">{formatNumber(results.kloc)}</span>
-                      </div>
-                    )}
-                    {results.productivity && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Productivity:</span>
-                        <span className="font-medium">{formatNumber(results.productivity)}</span>
-                      </div>
-                    )}
-                  </div>
+                      {results.equation && (
+                        <div className="bg-blue-50 p-2 rounded text-sm">
+                          <span className="text-gray-600">Regression Equation: </span>
+                          <span className="font-medium font-mono">{results.equation}</span>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
 
                 <div className="border-t pt-4">
                   <h4 className="font-medium mb-2">Key Insights</h4>
                   <ul className="text-sm text-gray-600 space-y-1">
-                    <li>• Estimates are based on historical data and industry averages</li>
-                    <li>• Consider adding 20-30% buffer for uncertainty</li>
-                    <li>• Results may vary based on team experience and technology</li>
+                    {results.method === 'COCOMO' && (
+                      <>
+                        <li>• COCOMO model is based on empirical software engineering data</li>
+                        <li>• Project type affects effort multipliers significantly</li>
+                        <li>• Consider adding 20-30% buffer for uncertainty</li>
+                      </>
+                    )}
+                    {results.method === 'Function Points' && (
+                      <>
+                        <li>• Function Points measure software functionality independent of technology</li>
+                        <li>• Complexity level significantly impacts the final estimate</li>
+                        <li>• Most effective for business applications</li>
+                      </>
+                    )}
+                    {results.method === 'Regression Analysis' && (
+                      <>
+                        <li>• Based on historical project data patterns</li>
+                        <li>• R² value indicates how well the model fits the data</li>
+                        <li>• Higher correlation coefficient means more reliable predictions</li>
+                        <li>• Quality depends on similarity of historical projects to new project</li>
+                      </>
+                    )}
                   </ul>
                 </div>
               </div>
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <Calculator className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                <p>Enter project parameters and calculate to see results</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   )

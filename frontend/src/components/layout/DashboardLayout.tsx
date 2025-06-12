@@ -4,7 +4,6 @@ import {
   Calculator,
   DollarSign,
   Shield,
-  FolderOpen,
   Menu,
   User,
   LogOut,
@@ -21,7 +20,6 @@ interface DashboardLayoutProps {
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
-  { name: 'Projects', href: '/projects', icon: FolderOpen },
   { name: 'Cost Estimation', href: '/cost-estimation', icon: Calculator },
   { name: 'Financial Analysis', href: '/financial-analysis', icon: DollarSign },
   { name: 'Risk Management', href: '/risk-management', icon: Shield },

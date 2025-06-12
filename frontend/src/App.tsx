@@ -8,8 +8,8 @@ import { Toaster } from 'sonner'
 import LoginPage from '@/pages/LoginPage'
 import RegisterPage from '@/pages/RegisterPage'
 import DashboardPage from '@/pages/DashboardPage'
-import ProjectsPage from '@/pages/ProjectsPage'
 import CostEstimationPage from '@/pages/CostEstimationPage'
+import CalculationHistoryPage from '@/pages/CalculationHistoryPage'
 import FinancialAnalysisPage from '@/pages/FinancialAnalysisPage'
 import RiskManagementPage from '@/pages/RiskManagementPage'
 
@@ -94,22 +94,23 @@ const AppRoutes: React.FC = () => {
           </ProtectedRoute>
         }
       />
-      <Route
-        path="/projects"
-        element={
-          <ProtectedRoute>
-            <DashboardLayout>
-              <ProjectsPage />
-            </DashboardLayout>
-          </ProtectedRoute>
-        }
-      />
+
       <Route
         path="/cost-estimation"
         element={
           <ProtectedRoute>
             <DashboardLayout>
               <CostEstimationPage />
+            </DashboardLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/calculation-history"
+        element={
+          <ProtectedRoute>
+            <DashboardLayout>
+              <CalculationHistoryPage />
             </DashboardLayout>
           </ProtectedRoute>
         }

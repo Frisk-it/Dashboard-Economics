@@ -20,7 +20,7 @@ Develop an interactive software tool to help software engineering teams evaluate
 
 -   Implement multiple cost estimation techniques:
     -   **Empirical Estimation:** COCOMO, Function Points
-    -   **Heuristic Estimation:** Expert Judgment, Delphi Method
+    -   **Statistical Estimation:** Historical Data Analysis
     -   **Analytical Mathematical Models:** Regression Analysis
 -   Allow users to input project attributes and compare outputs from different models.
 

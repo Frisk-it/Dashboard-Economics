@@ -134,61 +134,7 @@ class CostEstimationService {
     };
   }
 
-  /**
-   * Expert Judgment / Delphi Method Estimation
-   * @param {Array} estimates - Array of expert estimates
-   * @returns {Object} Delphi estimation results
-   */
-  static expertJudgmentEstimation(estimates) {
-    if (!estimates || estimates.length === 0) {
-      throw new Error('At least one estimate is required');
-    }
 
-    const sortedEstimates = estimates.sort((a, b) => a - b);
-    const n = estimates.length;
-
-    // Calculate statistics
-    const mean = estimates.reduce((sum, val) => sum + val, 0) / n;
-    const median = n % 2 === 0
-      ? (sortedEstimates[n/2 - 1] + sortedEstimates[n/2]) / 2
-      : sortedEstimates[Math.floor(n/2)];
-
-    // Standard deviation
-    const variance = estimates.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / n;
-    const stdDev = Math.sqrt(variance);
-
-    // Remove outliers (values beyond 2 standard deviations)
-    const filteredEstimates = estimates.filter(est => Math.abs(est - mean) <= 2 * stdDev);
-    const adjustedMean = filteredEstimates.length > 0
-      ? filteredEstimates.reduce((sum, val) => sum + val, 0) / filteredEstimates.length
-      : mean;
-
-    // Three-point estimation (PERT)
-    const optimistic = Math.min(...estimates);
-    const pessimistic = Math.max(...estimates);
-    const mostLikely = median;
-    const pertEstimate = (optimistic + 4 * mostLikely + pessimistic) / 6;
-
-    return {
-      model: 'Expert Judgment (Delphi)',
-      numberOfExperts: n,
-      originalEstimates: estimates,
-      statistics: {
-        mean: Math.round(mean * 100) / 100,
-        median: Math.round(median * 100) / 100,
-        standardDeviation: Math.round(stdDev * 100) / 100,
-        minimum: optimistic,
-        maximum: pessimistic
-      },
-      filteredEstimates: filteredEstimates,
-      adjustedMean: Math.round(adjustedMean * 100) / 100,
-      pertEstimate: Math.round(pertEstimate * 100) / 100,
-      confidenceRange: {
-        low: Math.round((adjustedMean - stdDev) * 100) / 100,
-        high: Math.round((adjustedMean + stdDev) * 100) / 100
-      }
-    };
-  }
 
   /**
    * Regression Analysis Estimation

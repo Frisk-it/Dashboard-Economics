@@ -123,10 +123,7 @@ class ApiService {
     return response.data
   }
 
-  async expertJudgmentEstimation(data: { estimates: number[] }) {
-    const response = await this.client.post('/api/calculations/cost-estimation/expert-judgment', data)
-    return response.data
-  }
+
 
   async regressionAnalysisEstimation(data: {
     historicalData: Array<{ size: number; effort: number }>
