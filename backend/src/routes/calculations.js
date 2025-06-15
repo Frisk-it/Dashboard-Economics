@@ -3,6 +3,7 @@ const { body, validationResult } = require('express-validator');
 const { authenticateToken } = require('../middleware/auth');
 const CostEstimationService = require('../services/costEstimation');
 const FinancialAnalysisService = require('../services/financialAnalysis');
+const BudgetingService = require('../services/budgetingService');
 const RiskManagementService = require('../services/riskManagement');
 const CalculationHistoryService = require('../services/calculationHistory');
 
@@ -296,6 +297,214 @@ router.post('/financial-analysis/comprehensive', authenticateToken, [
 
     const projectData = req.body;
     const result = FinancialAnalysisService.comprehensiveAnalysis(projectData);
+
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Budgeting Routes
+
+// Create Budget Plan
+router.post('/budgeting/create-plan', authenticateToken, [
+  body('projectName').optional().isString().withMessage('Project name must be a string'),
+  body('totalBudget').isFloat({ min: 0.01 }).withMessage('Total budget must be greater than 0'),
+  body('categories').isArray({ min: 1 }).withMessage('At least one budget category is required'),
+  body('categories.*.name').isString().withMessage('Category name is required'),
+  body('categories.*.amount').optional().isFloat({ min: 0 }).withMessage('Amount must be non-negative'),
+  body('categories.*.percentage').optional().isFloat({ min: 0, max: 100 }).withMessage('Percentage must be between 0 and 100'),
+  body('timeframe').optional().isString().withMessage('Timeframe must be a string'),
+  body('currency').optional().isString().withMessage('Currency must be a string')
+], async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: errors.array()
+      });
+    }
+
+    const budgetData = req.body;
+    const result = BudgetingService.createBudgetPlan(budgetData);
+
+    // Save calculation to database
+    try {
+      await CalculationHistoryService.saveCalculation(req.user.id, {
+        method: 'Budget Plan',
+        inputData: budgetData,
+        results: result
+      });
+    } catch (saveError) {
+      console.warn('Failed to save calculation to database:', saveError);
+    }
+
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Budget Variance Analysis
+router.post('/budgeting/variance-analysis', authenticateToken, [
+  body('budgetPlan').isObject().withMessage('Budget plan is required'),
+  body('actualExpenses').isArray({ min: 1 }).withMessage('Actual expenses array is required'),
+  body('actualExpenses.*.name').isString().withMessage('Expense name is required'),
+  body('actualExpenses.*.amount').isFloat({ min: 0 }).withMessage('Amount must be non-negative')
+], async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: errors.array()
+      });
+    }
+
+    const analysisData = req.body;
+    const result = BudgetingService.budgetVarianceAnalysis(analysisData);
+
+    // Save calculation to database
+    try {
+      await CalculationHistoryService.saveCalculation(req.user.id, {
+        method: 'Budget Variance Analysis',
+        inputData: analysisData,
+        results: result
+      });
+    } catch (saveError) {
+      console.warn('Failed to save calculation to database:', saveError);
+    }
+
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Budget Forecasting
+router.post('/budgeting/forecast', authenticateToken, [
+  body('budgetPlan').isObject().withMessage('Budget plan is required'),
+  body('actualSpendingToDate').isFloat({ min: 0 }).withMessage('Actual spending must be non-negative'),
+  body('timeElapsed').isFloat({ min: 0 }).withMessage('Time elapsed must be non-negative'),
+  body('totalTimeframe').isFloat({ min: 0.1 }).withMessage('Total timeframe must be greater than 0'),
+  body('trendType').optional().isIn(['linear', 'accelerating', 'decelerating']).withMessage('Invalid trend type')
+], async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: errors.array()
+      });
+    }
+
+    const forecastData = req.body;
+    const result = BudgetingService.budgetForecast(forecastData);
+
+    // Save calculation to database
+    try {
+      await CalculationHistoryService.saveCalculation(req.user.id, {
+        method: 'Budget Forecast',
+        inputData: forecastData,
+        results: result
+      });
+    } catch (saveError) {
+      console.warn('Failed to save calculation to database:', saveError);
+    }
+
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Budget Optimization
+router.post('/budgeting/optimization', authenticateToken, [
+  body('budgetPlan').isObject().withMessage('Budget plan is required'),
+  body('constraints').optional().isArray().withMessage('Constraints must be an array'),
+  body('priorities').optional().isArray().withMessage('Priorities must be an array'),
+  body('optimizationGoal').optional().isIn(['cost-reduction', 'value-maximization']).withMessage('Invalid optimization goal')
+], async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: errors.array()
+      });
+    }
+
+    const optimizationData = req.body;
+    const result = BudgetingService.budgetOptimization(optimizationData);
+
+    // Save calculation to database
+    try {
+      await CalculationHistoryService.saveCalculation(req.user.id, {
+        method: 'Budget Optimization',
+        inputData: optimizationData,
+        results: result
+      });
+    } catch (saveError) {
+      console.warn('Failed to save calculation to database:', saveError);
+    }
+
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Budget Performance Metrics
+router.post('/budgeting/performance-metrics', authenticateToken, [
+  body('budgetHistory').isArray({ min: 1 }).withMessage('Budget history is required'),
+  body('budgetHistory.*.period').isString().withMessage('Period is required'),
+  body('budgetHistory.*.variancePercentage').isFloat().withMessage('Variance percentage is required'),
+  body('benchmarkData').optional().isObject().withMessage('Benchmark data must be an object'),
+  body('timeframe').optional().isString().withMessage('Timeframe must be a string')
+], async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: errors.array()
+      });
+    }
+
+    const metricsData = req.body;
+    const result = BudgetingService.budgetPerformanceMetrics(metricsData);
+
+    // Save calculation to database
+    try {
+      await CalculationHistoryService.saveCalculation(req.user.id, {
+        method: 'Budget Performance Metrics',
+        inputData: metricsData,
+        results: result
+      });
+    } catch (saveError) {
+      console.warn('Failed to save calculation to database:', saveError);
+    }
 
     res.json({
       success: true,

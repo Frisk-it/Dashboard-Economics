@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Clock, TrendingUp, Eye, Trash2, Filter, Download, Search } from 'lucide-react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { formatCurrency, formatNumber } from '@/lib/utils'
@@ -44,7 +44,7 @@ const CalculationHistoryPage: React.FC = () => {
     try {
       const response = await fetch(`/api/calculations/history?page=${pagination.page}&limit=${pagination.limit}`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         }
       })
 
@@ -66,7 +66,7 @@ const CalculationHistoryPage: React.FC = () => {
     try {
       const response = await fetch('/api/calculations/history/stats', {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         }
       })
 
@@ -109,7 +109,7 @@ const CalculationHistoryPage: React.FC = () => {
       const response = await fetch(`/api/calculations/history/${id}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         }
       })
 

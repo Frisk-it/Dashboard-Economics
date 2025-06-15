@@ -21,7 +21,7 @@ interface DashboardLayoutProps {
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
   { name: 'Cost Estimation', href: '/cost-estimation', icon: Calculator },
-  { name: 'Financial Analysis', href: '/financial-analysis', icon: DollarSign },
+  { name: 'Budgeting', href: '/financial-analysis', icon: DollarSign },
   { name: 'Risk Management', href: '/risk-management', icon: Shield },
 ]
 

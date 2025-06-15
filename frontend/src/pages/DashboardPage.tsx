@@ -2,7 +2,6 @@ import React from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   TrendingUp,
-  TrendingDown,
   DollarSign,
   Calculator,
   Shield,
@@ -124,7 +123,7 @@ const DashboardPage: React.FC = () => {
             <Link to="/financial-analysis">
               <Button variant="outline" className="w-full h-24 flex flex-col items-center justify-center space-y-2">
                 <DollarSign className="h-6 w-6" />
-                <span>Financial Analysis</span>
+                <span>Budgeting</span>
               </Button>
             </Link>
             <Link to="/risk-management">
@@ -177,9 +176,9 @@ const DashboardPage: React.FC = () => {
                   3
                 </div>
                 <div>
-                  <h3 className="font-medium">Analyze Financials</h3>
+                  <h3 className="font-medium">Budgeting & Financial Analysis</h3>
                   <p className="text-sm text-gray-600">
-                    Calculate ROI, NPV, IRR, and other financial metrics
+                    Calculate ROI, NPV, IRR, Payback Period and other financial metrics
                   </p>
                 </div>
               </div>
